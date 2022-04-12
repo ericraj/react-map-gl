@@ -1,18 +1,20 @@
 import * as React from 'react';
-import {useState, useEffect, useMemo, useCallback} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import {render} from 'react-dom';
-import Map, {Source, Layer} from 'react-map-gl';
+import Map, {Layer, LayerProps, Source} from 'react-map-gl';
 import ControlPanel from './control-panel';
-
 import {dataLayer} from './map-style';
 import {updatePercentiles} from './utils';
 
-const MAPBOX_TOKEN = ''; // Set your mapbox token here
+const MAPBOX_TOKEN =
+  'pk.eyJ1IjoiZXJpY3BtZGMiLCJhIjoiY2twN3loMWdjMDR3djJubmxtNHdsZ283aSJ9.LJ3cPW5c6J6wbVTMZYYLJA'; // Set your mapbox token here
 
 export default function App() {
   const [year, setYear] = useState(2015);
   const [allData, setAllData] = useState(null);
   const [hoverInfo, setHoverInfo] = useState(null);
+
+  const [currentZone, setCurrentZone] = useState(null);
 
   useEffect(() => {
     /* global fetch */
@@ -39,6 +41,15 @@ export default function App() {
     return allData && updatePercentiles(allData, f => f.properties.income[year]);
   }, [allData, year]);
 
+  const layerLine: LayerProps = {
+    id: '__layer__line__id',
+    type: 'line',
+    paint: {
+      'line-color': '#fff',
+      'line-width': 3
+    }
+  };
+
   return (
     <>
       <Map
@@ -51,10 +62,24 @@ export default function App() {
         mapboxAccessToken={MAPBOX_TOKEN}
         interactiveLayerIds={['data']}
         onMouseMove={onHover}
+        onClick={ev => {
+          if (data?.features?.length) {
+            const currentZone = data.features.find(
+              (f: GeoJSON.Feature<GeoJSON.Geometry>) =>
+                f.properties.name === ev.features[0].properties.name
+            );
+            setCurrentZone(currentZone);
+          }
+        }}
       >
         <Source type="geojson" data={data}>
           <Layer {...dataLayer} />
         </Source>
+        {currentZone && (
+          <Source type="geojson" data={currentZone}>
+            <Layer {...layerLine} />
+          </Source>
+        )}
         {hoverInfo && (
           <div className="tooltip" style={{left: hoverInfo.x, top: hoverInfo.y}}>
             <div>State: {hoverInfo.feature.properties.name}</div>
